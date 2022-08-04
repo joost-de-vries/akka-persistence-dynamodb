@@ -204,7 +204,6 @@ trait DynamoDBRecovery extends AsyncReplayMessages {
     logFailure(s"replay for $persistenceId ($fromSequenceNr to $toSequenceNr)") {
       log.debug("starting replay for {} from {} to {} (max {})", persistenceId, fromSequenceNr, toSequenceNr, max)
 
-      // toSequenceNr is already capped to highest and guaranteed to be no less than fromSequenceNr
       eventsStream(persistenceId = persistenceId, fromSequenceNr = fromSequenceNr, toSequenceNr = toSequenceNr, max = max)
         .runFold(0) { (count, next) => replayCallback(next); count + 1 }
         .map(count => log.debug("replay finished for {} with {} events", persistenceId, count))

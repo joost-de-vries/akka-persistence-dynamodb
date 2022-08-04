@@ -15,7 +15,7 @@ import scala.util.control.NonFatal
 
 trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { self: ReadJournalSettingsProvider with DynamoProvider with ActorSystemProvider with LoggingProvider =>
 
-  def currentPersistenceIds(): Source[String, NotUsed] = {
+  override def currentPersistenceIds(): Source[String, NotUsed] = {
     log.debug("starting currentPersistenceIds")
     currentPersistenceIdsByPageInternal()
       .mapConcat(identity)
