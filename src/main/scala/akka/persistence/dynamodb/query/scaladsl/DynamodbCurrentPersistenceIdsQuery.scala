@@ -86,7 +86,7 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
       postfix.substring(0, postfix.lastIndexOf("-"))
     } catch {
       case NonFatal(exception) =>
-        log.error("Could not parse raw persistence id '{}'. Returning it unparsed.", parValue)
+        log.error("Could not parse raw persistence id '{}' using journal name '{}'. Returning it unparsed.", parValue, journalName)
         parValue
     }
 }
