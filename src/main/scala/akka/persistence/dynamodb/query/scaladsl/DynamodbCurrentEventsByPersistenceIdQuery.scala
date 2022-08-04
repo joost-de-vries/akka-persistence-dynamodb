@@ -2,14 +2,16 @@ package akka.persistence.dynamodb.query.scaladsl
 
 import akka.NotUsed
 import akka.persistence.PersistentRepr
+import akka.persistence.dynamodb.{ActorSystemProvider, DynamoProvider, LoggingProvider, MaterializerProvider}
 import akka.persistence.dynamodb.journal._
+import akka.persistence.dynamodb.query.ReadJournalSettingsProvider
 import akka.persistence.dynamodb.query.scaladsl.DynamodbCurrentEventsByPersistenceIdQuery.RichPersistenceRepr
 import akka.persistence.query.scaladsl.CurrentEventsByPersistenceIdQuery
-import akka.persistence.query.{ EventEnvelope, Sequence }
+import akka.persistence.query.{EventEnvelope, Sequence}
 import akka.stream.scaladsl.Source
 
 trait DynamodbCurrentEventsByPersistenceIdQuery extends CurrentEventsByPersistenceIdQuery with DynamoDBRecovery {
-  self: SettingsProvider
+  self: ReadJournalSettingsProvider
     with DynamoProvider
     with ActorSystemProvider
     with JournalSettingsProvider

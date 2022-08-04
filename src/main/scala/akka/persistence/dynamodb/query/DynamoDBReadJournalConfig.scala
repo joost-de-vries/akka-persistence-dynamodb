@@ -14,8 +14,8 @@ class DynamoDBReadJournalConfig(c: Config) extends DynamoDBConfig {
   val MaxItemSize: Int = c.getInt("aws-api-limits.max-item-size")
 
   override def toString: String =
-    "DynamoDBJournalConfig(" +
-    "SnapshotTable:" + Table +
+    "DynamoDBReadJournalConfig(" +
+    "Table:" + Table +
     ",AwsKey:" + AwsKey +
     ",Endpoint:" + Endpoint + ")"
 

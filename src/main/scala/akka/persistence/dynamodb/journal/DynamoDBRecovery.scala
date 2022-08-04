@@ -22,7 +22,6 @@ import akka.event.LoggingAdapter
 import akka.stream.stage._
 import akka.stream._
 import akka.persistence.dynamodb._
-import akka.persistence.dynamodb.query.scaladsl.{ActorSystemProvider, DynamoProvider}
 import akka.serialization.{AsyncSerializer, Serialization}
 
 object DynamoDBRecovery {
@@ -530,13 +529,3 @@ trait DynamoDBRecovery extends AsyncReplayMessages {
       })
 }
 
-trait JournalSettingsProvider {
-  val journalSettings: DynamoDBJournalConfig
-}
-trait MaterializerProvider {
-  implicit val materializer :Materializer
-}
-trait LoggingProvider {
-
-  def log: LoggingAdapter
-}

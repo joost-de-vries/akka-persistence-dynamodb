@@ -1,6 +1,8 @@
 package akka.persistence.dynamodb.query.scaladsl
 
 import akka.NotUsed
+import akka.persistence.dynamodb.query.ReadJournalSettingsProvider
+import akka.persistence.dynamodb.{ActorSystemProvider, DynamoProvider}
 import akka.persistence.dynamodb.query.scaladsl.DynamodbCurrentPersistenceIdsQuery.{RichNumber, RichOption, RichScanResult}
 import akka.persistence.query.scaladsl.CurrentPersistenceIdsQuery
 import akka.stream.scaladsl.Source
@@ -10,7 +12,7 @@ import scala.concurrent.Future
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, MapHasAsJava}
 import scala.util.Try
 
-trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { self: SettingsProvider with DynamoProvider with ActorSystemProvider =>
+trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { self: ReadJournalSettingsProvider with DynamoProvider with ActorSystemProvider =>
 
   def currentPersistenceIds(): Source[String, NotUsed] =
     currentPersistenceIdsByPage().mapConcat(identity)
@@ -26,7 +28,7 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
 
     def scanRequest(exclusiveStartKey: Option[java.util.Map[String, AttributeValue]]): ScanRequest = {
       val req = new ScanRequest()
-        .withTableName(settings.Table)
+        .withTableName(readJournalSettings.Table)
         .withProjectionExpression("par")
         .withFilterExpression("num = :n")
         .withExpressionAttributeValues(Map(":n" -> 1.toAttribute).asJava)
@@ -59,7 +61,7 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
       .flatMapConcat(_.toSource)
       .map(scanResult =>
         scanResult.toPersistenceIdsPage.map { rawPersistenceId =>
-          parsePersistenceId(parValue = rawPersistenceId, journalName = settings.JournalName)
+          parsePersistenceId(parValue = rawPersistenceId, journalName = readJournalSettings.JournalName)
         })
   }
 

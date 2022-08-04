@@ -28,7 +28,6 @@ import akka.actor.TypedActor.context
 
 import scala.concurrent.Promise
 import akka.persistence.dynamodb._
-import akka.persistence.dynamodb.query.scaladsl.{ActorSystemProvider, DynamoProvider}
 
 class DynamoDBJournalFailure(message: String, cause: Throwable = null)   extends RuntimeException(message, cause)
 class DynamoDBJournalRejection(message: String, cause: Throwable = null) extends RuntimeException(message, cause)

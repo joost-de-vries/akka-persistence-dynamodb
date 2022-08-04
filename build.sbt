@@ -5,8 +5,8 @@ crossScalaVersions := Seq("2.12.15", "2.13.7")
 crossVersion := CrossVersion.binary
 
 val akkaVersion                = "2.5.29"
-val amzVersion                 = "1.12.173"
-val testcontainersScalaVersion = "0.40.2"
+val amzVersion                 = "1.12.125"
+val testcontainersScalaVersion = "0.39.8"
 
 libraryDependencies ++= Seq(
   "com.amazonaws"           % "aws-java-sdk-core"              % amzVersion,
@@ -21,8 +21,7 @@ libraryDependencies ++= Seq(
   "org.scalatest"          %% "scalatest"                      % "3.0.8"                    % "test",
   "commons-io"              % "commons-io"                     % "2.4"                      % "test",
   "org.hdrhistogram"        % "HdrHistogram"                   % "2.1.8"                    % "test",
-  "com.dimafeng"           %% "testcontainers-scala-scalatest" % testcontainersScalaVersion % "test"
-)
+  "com.dimafeng"           %% "testcontainers-scala-scalatest" % testcontainersScalaVersion % "test")
 Test / parallelExecution := false
 // required by test-containers-scala
 Test / fork := true

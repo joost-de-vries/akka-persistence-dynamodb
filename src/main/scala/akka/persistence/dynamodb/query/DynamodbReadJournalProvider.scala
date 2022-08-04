@@ -15,3 +15,6 @@ class DynamodbReadJournalProvider(system: ExtendedActorSystem, config: Config, c
   override def javadslReadJournal(): javadsl.ReadJournal = _javadslReadJournal
 }
 
+trait ReadJournalSettingsProvider {
+  protected def readJournalSettings: DynamoDBReadJournalConfig
+}
