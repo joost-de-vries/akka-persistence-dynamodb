@@ -21,6 +21,16 @@ trait DynamodbCurrentEventsByPersistenceIdQuery extends CurrentEventsByPersisten
     with JournalKeys
     with SerializationProvider =>
 
+  /**
+   * Same type of query as [[akka.persistence.query.scaladsl.EventsByPersistenceIdQuery#eventsByPersistenceId]]
+   * but the event stream is completed immediately when it reaches the end of
+   * the "result set". Events that are stored after the query is completed are
+   * not included in the event stream.
+   *
+   * Execution plan:
+   * - a dynamodb <code>query</code> to get lowest sequenceNr
+   * - a <code>query</code> per partition. Doing follow calls to get more pages if necessary.
+   */
   override def currentEventsByPersistenceId(persistenceId: String, fromSequenceNr: Long, toSequenceNr: Long): Source[EventEnvelope, NotUsed] = {
     log.debug("starting currentEventsByPersistenceId for {} from {} to {}", persistenceId, fromSequenceNr, toSequenceNr)
     eventsStream(persistenceId = persistenceId, fromSequenceNr = fromSequenceNr, toSequenceNr = toSequenceNr, max = Int.MaxValue)

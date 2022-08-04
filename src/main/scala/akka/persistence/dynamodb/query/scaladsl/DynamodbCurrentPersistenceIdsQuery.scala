@@ -15,7 +15,7 @@ import scala.util.control.NonFatal
 trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { self: ReadJournalSettingsProvider with DynamoProvider with ActorSystemProvider with LoggingProvider =>
 
   /**
-   * Same type of query as [[akka.persistence.query.scaladsl.PersistenceIdsQuery.persistenceIds()]] but the stream
+   * Same type of query as [[akka.persistence.query.scaladsl.PersistenceIdsQuery#persistenceIds()]] but the stream
    * is completed immediately when it reaches the end of the "result set". Persistent
    * actors that are created after the query is completed are not included in the stream.
    *
@@ -29,7 +29,7 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
   }
 
   /**
-   * The implementation that is used for [[currentPersistenceIds()]]
+   * The implementation that is used for [[currentPersistenceIds]]
    * Here the results are offered page by page.
    * A dynamodb <code>scan</code> will be performed. Results will be paged per 1 MB size.
    */
