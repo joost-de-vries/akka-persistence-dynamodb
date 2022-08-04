@@ -21,9 +21,12 @@ trait DynamodbCurrentEventsByPersistenceIdQuery extends CurrentEventsByPersisten
     with JournalKeys
     with SerializationProvider =>
 
-  override def currentEventsByPersistenceId(persistenceId: String, fromSequenceNr: Long, toSequenceNr: Long): Source[EventEnvelope, NotUsed] =
+  override def currentEventsByPersistenceId(persistenceId: String, fromSequenceNr: Long, toSequenceNr: Long): Source[EventEnvelope, NotUsed] = {
+    log.debug("starting currentEventsByPersistenceId for {} from {} to {}", persistenceId, fromSequenceNr, toSequenceNr)
     eventsStream(persistenceId = persistenceId, fromSequenceNr = fromSequenceNr, toSequenceNr = toSequenceNr, max = Int.MaxValue)
       .map(_.toEventEnvelope(persistenceId))
+      .log(s"currentEventsByPersistenceId for $persistenceId from $fromSequenceNr to $toSequenceNr")
+  }
 }
 
 object DynamodbCurrentEventsByPersistenceIdQuery {

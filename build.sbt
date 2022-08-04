@@ -22,6 +22,7 @@ libraryDependencies ++= Seq(
   "commons-io"              % "commons-io"                     % "2.4"                      % "test",
   "org.hdrhistogram"        % "HdrHistogram"                   % "2.1.8"                    % "test",
   "com.dimafeng"           %% "testcontainers-scala-scalatest" % testcontainersScalaVersion % "test")
+
 Test / parallelExecution := false
 // required by test-containers-scala
 Test / fork := true

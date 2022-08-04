@@ -2,7 +2,7 @@ package akka.persistence.dynamodb.query.scaladsl
 
 import akka.NotUsed
 import akka.persistence.dynamodb.query.ReadJournalSettingsProvider
-import akka.persistence.dynamodb.{ActorSystemProvider, DynamoProvider}
+import akka.persistence.dynamodb.{ActorSystemProvider, DynamoProvider, LoggingProvider}
 import akka.persistence.dynamodb.query.scaladsl.DynamodbCurrentPersistenceIdsQuery.{RichNumber, RichOption, RichScanResult}
 import akka.persistence.query.scaladsl.CurrentPersistenceIdsQuery
 import akka.stream.scaladsl.Source
@@ -11,31 +11,24 @@ import com.amazonaws.services.dynamodbv2.model.{AttributeValue, ScanRequest, Sca
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, MapHasAsJava}
 import scala.util.Try
+import scala.util.control.NonFatal
 
-trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { self: ReadJournalSettingsProvider with DynamoProvider with ActorSystemProvider =>
+trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { self: ReadJournalSettingsProvider with DynamoProvider with ActorSystemProvider with LoggingProvider =>
 
-  def currentPersistenceIds(): Source[String, NotUsed] =
-    currentPersistenceIdsByPage().mapConcat(identity)
+  def currentPersistenceIds(): Source[String, NotUsed] = {
+    log.debug("starting currentPersistenceIds")
+    currentPersistenceIdsByPageInternal()
+      .mapConcat(identity)
+      .log("currentPersistenceIds")
+  }
 
   def currentPersistenceIdsByPage(): Source[Seq[String], NotUsed] = {
-    // persistence id is formatted as follows journal-P-98adb33a-a94d-4ec8-a279-4570e16a0c14-0
-    // see DynamoDBJournal.messagePartitionKeyFromGroupNr
-    def parsePersistenceId(parValue: String, journalName: String): String =
-      Try {
-        val postfix = parValue.substring(journalName.length + 3)
-        postfix.substring(0, postfix.lastIndexOf("-"))
-      }.getOrElse(parValue)
+    log.debug("starting currentPersistenceIdsByPage")
+    currentPersistenceIdsByPageInternal()
+      .log("currentPersistenceIdsByPage")
+  }
 
-    def scanRequest(exclusiveStartKey: Option[java.util.Map[String, AttributeValue]]): ScanRequest = {
-      val req = new ScanRequest()
-        .withTableName(readJournalSettings.Table)
-        .withProjectionExpression("par")
-        .withFilterExpression("num = :n")
-        .withExpressionAttributeValues(Map(":n" -> 1.toAttribute).asJava)
-      exclusiveStartKey.foreach(esk => req.withExclusiveStartKey(esk))
-      req
-    }
-
+  private def currentPersistenceIdsByPageInternal(): Source[Seq[String], NotUsed] = {
     import system.dispatcher
 
     def nextCall(previousOpt: Option[ScanResult]) =
@@ -52,20 +45,41 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
     def lazyStream(v: Source[Option[ScanResult], NotUsed]): Source[Option[ScanResult], NotUsed] =
       v.concat(Source.lazily(() => lazyStream(v.mapAsync(1)(nextCall))))
 
-    // infinite stream of call results
-    val streamOfResults: Source[Option[ScanResult], NotUsed] =
+    val infiniteStreamOfResults: Source[Option[ScanResult], NotUsed] =
       lazyStream(Source.fromFuture(dynamo.scan(scanRequest(None)).map(Some(_))))
 
-    streamOfResults
+    infiniteStreamOfResults
       .takeWhile(_.isDefined)
       .flatMapConcat(_.toSource)
       .map(scanResult =>
-        scanResult.toPersistenceIdsPage.map { rawPersistenceId =>
-          parsePersistenceId(parValue = rawPersistenceId, journalName = readJournalSettings.JournalName)
-        })
+        scanResult.toPersistenceIdsPage
+          .map ( rawPersistenceId => parsePersistenceId(parValue = rawPersistenceId, journalName = readJournalSettings.JournalName) )
+      )
   }
 
+  private def scanRequest(exclusiveStartKey: Option[java.util.Map[String, AttributeValue]]): ScanRequest = {
+    val req = new ScanRequest()
+      .withTableName(readJournalSettings.Table)
+      .withProjectionExpression("par")
+      .withFilterExpression("num = :n")
+      .withExpressionAttributeValues(Map(":n" -> 1.toAttribute).asJava)
+    exclusiveStartKey.foreach(esk => req.withExclusiveStartKey(esk))
+    req
+  }
+
+  // persistence id is formatted as follows journal-P-98adb33a-a94d-4ec8-a279-4570e16a0c14-0
+  // see DynamoDBJournal.messagePartitionKeyFromGroupNr
+  private def parsePersistenceId(parValue: String, journalName: String): String =
+    try {
+      val postfix = parValue.substring(journalName.length + 3)
+      postfix.substring(0, postfix.lastIndexOf("-"))
+    } catch {
+      case NonFatal(exception) =>
+        log.error("Could not parse raw persistence id '{}'. Returning it unparsed.", parValue)
+        parValue
+    }
 }
+
 object DynamodbCurrentPersistenceIdsQuery {
   implicit class RichString(val s: String) extends AnyVal {
     def toAttribute: AttributeValue = new AttributeValue().withS(s)
@@ -86,4 +100,5 @@ object DynamodbCurrentPersistenceIdsQuery {
   implicit class RichScanResult(val scanResult: ScanResult) extends AnyVal {
     def toPersistenceIdsPage: Seq[String] = scanResult.getItems.asScala.map(item => item.get("par").getS).toSeq
   }
+
 }
