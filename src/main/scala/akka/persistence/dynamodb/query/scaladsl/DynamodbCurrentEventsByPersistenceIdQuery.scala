@@ -22,9 +22,9 @@ trait DynamodbCurrentEventsByPersistenceIdQuery extends CurrentEventsByPersisten
     with SerializationProvider =>
 
   /**
-   * Same type of query as [[akka.persistence.query.scaladsl.EventsByPersistenceIdQuery#eventsByPersistenceId]]
+   * Same type of query as [[akka.persistence.query.scaladsl.EventsByPersistenceIdQuery.eventsByPersistenceId]]
    * but the event stream is completed immediately when it reaches the end of
-   * the "result set". Events that are stored after the query is completed are
+   * the results. Events that are stored after the query is completed are
    * not included in the event stream.
    *
    * Execution plan:
@@ -34,17 +34,16 @@ trait DynamodbCurrentEventsByPersistenceIdQuery extends CurrentEventsByPersisten
   override def currentEventsByPersistenceId(persistenceId: String, fromSequenceNr: Long, toSequenceNr: Long): Source[EventEnvelope, NotUsed] = {
     log.debug("starting currentEventsByPersistenceId for {} from {} to {}", persistenceId, fromSequenceNr, toSequenceNr)
     eventsStream(persistenceId = persistenceId, fromSequenceNr = fromSequenceNr, toSequenceNr = toSequenceNr, max = Int.MaxValue)
-      .map(_.toEventEnvelope(persistenceId))
+      .map(_.toEventEnvelope)
       .log(s"currentEventsByPersistenceId for $persistenceId from $fromSequenceNr to $toSequenceNr")
   }
 }
 
 object DynamodbCurrentEventsByPersistenceIdQuery {
   implicit class RichPersistenceRepr(val persistenceRepr: PersistentRepr) extends AnyVal {
-    def toEventEnvelope(persistenceId: String) =
-      new EventEnvelope(
+    def toEventEnvelope = new EventEnvelope(
         offset = Sequence(persistenceRepr.sequenceNr),
-        persistenceId = persistenceId,
+        persistenceId = persistenceRepr.persistenceId,
         sequenceNr = persistenceRepr.sequenceNr,
         event = persistenceRepr.payload,
         timestamp = persistenceRepr.timestamp)
