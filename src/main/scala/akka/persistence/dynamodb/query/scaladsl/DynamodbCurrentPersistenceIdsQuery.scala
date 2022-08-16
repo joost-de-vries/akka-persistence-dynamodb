@@ -3,12 +3,12 @@ package akka.persistence.dynamodb.query.scaladsl
 import akka.NotUsed
 import akka.persistence.dynamodb.query.ReadJournalSettingsProvider
 import akka.persistence.dynamodb.{ActorSystemProvider, DynamoProvider, LoggingProvider}
-import akka.persistence.dynamodb.query.scaladsl.DynamodbCurrentPersistenceIdsQuery.{RichNumber, RichOption, RichScanResult}
+import akka.persistence.dynamodb.query.scaladsl.DynamodbCurrentPersistenceIdsQuery.{RichNumber, RichOption, RichScanResult, SourceLazyOps}
 import akka.persistence.query.scaladsl.CurrentPersistenceIdsQuery
 import akka.stream.scaladsl.Source
 import com.amazonaws.services.dynamodbv2.model.{AttributeValue, ScanRequest, ScanResult}
-
 import akka.util.ccompat.JavaConverters._
+
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
@@ -52,7 +52,7 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
 
     def lazyStream(currentResult: ResultSource): ResultSource = {
       def nextResult: ResultSource = currentResult.mapAsync(parallelism = 1)(nextCall)
-      currentResult.concat(Source.lazily(() => lazyStream(nextResult)))
+      currentResult.concatLazy(lazyStream(nextResult))
     }
 
     val infiniteStreamOfResults: ResultSource =
@@ -111,5 +111,13 @@ object DynamodbCurrentPersistenceIdsQuery {
     def toPersistenceIdsPage: Seq[String] = scanResult.getItems.asScala.map(item => item.get("par").getS).toList
 
     def hasNextResult: Boolean = scanResult.getLastEvaluatedKey != null && !scanResult.getLastEvaluatedKey.isEmpty
+  }
+
+  implicit class SourceLazyOps[E, M](val src: Source[E, M]) {
+
+    // see https://github.com/akka/akka/issues/23044
+    // when migrating to akka 2.6.x use akka's concatLazy
+    def concatLazy[M1](src2: => Source[E, M1]): Source[E, NotUsed] =
+      Source(List(() => src, () => src2)).flatMapConcat(_ ())
   }
 }
