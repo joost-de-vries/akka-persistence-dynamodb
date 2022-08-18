@@ -33,8 +33,7 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
   }
 
   /**
-   * The implementation that is used for [[currentPersistenceIds]]
-   * Here the results are offered page by page.
+   * Persistence ids are returned page by page.
    * A dynamodb <code>scan</code> will be performed. Results will be paged per 1 MB size.
    */
   def currentPersistenceIdsByPageScan(): Source[Seq[String], NotUsed] = {
