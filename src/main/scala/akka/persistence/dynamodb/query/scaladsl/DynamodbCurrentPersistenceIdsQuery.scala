@@ -151,7 +151,7 @@ object DynamodbCurrentPersistenceIdsQuery {
       }
   }
 
-  implicit class SourceLazyOps[E, M](val src: Source[E, M]) {
+  implicit class SourceLazyOps[E, M](val src: Source[E, M]) extends AnyVal {
 
     // see https://github.com/akka/akka/issues/23044
     // when migrating to akka 2.6.x use akka's concatLazy
