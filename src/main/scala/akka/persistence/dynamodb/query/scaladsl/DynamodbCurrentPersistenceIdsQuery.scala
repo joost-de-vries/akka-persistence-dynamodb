@@ -88,8 +88,8 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
     infiniteStreamOfResults
       .takeWhile(_.isDefined)
       .flatMapConcat(_.toSource)
-      .map(scanResult =>
-        scanResult.toPersistenceIdsPage
+      .map(persistenceIdsResult =>
+        persistenceIdsResult.toPersistenceIdsPage
           .map ( rawPersistenceId => parsePersistenceId(rawPersistenceId = rawPersistenceId, journalName = readJournalSettings.JournalName) )
       )
   }
