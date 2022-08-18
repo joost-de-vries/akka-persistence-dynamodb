@@ -22,11 +22,12 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
    * is completed immediately when it reaches the end of the "result set". Persistent
    * actors that are created after the query is completed are not included in the stream.
    *
-   * A dynamodb <code>scan</code> will be performed. Results will be paged per 1 MB size.
+   * A dynamodb <code>query</code> will be performed against a Global Secondary Index 'persistence-ids-idx'.
+   * See [[CreatePersistenceIdsIndex.createPersistenceIdsIndexRequest]]
    */
   override def currentPersistenceIds(): Source[String, NotUsed] = {
     log.debug("starting currentPersistenceIds")
-    currentPersistenceIdsScanInternal()
+    currentPersistenceIdsQueryInternal()
       .mapConcat(seq => seq.toList)
       .log("currentPersistenceIds")
   }
@@ -45,7 +46,7 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
   /**
    * Persistence ids are returned page by page.
    * A dynamodb <code>query</code> will be performed against a Global Secondary Index 'persistence-ids-idx'.
-   * See [[CreatePersistenceIdsIndex.createPersistenceIdsIndex]]
+   * See [[CreatePersistenceIdsIndex.createPersistenceIdsIndexRequest]]
    */
   def currentPersistenceIdsByPageQuery(): Source[Seq[String], NotUsed] = {
     log.debug("starting currentPersistenceIdsByPageQuery")
