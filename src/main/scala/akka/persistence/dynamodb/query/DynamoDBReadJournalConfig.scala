@@ -13,6 +13,8 @@ class DynamoDBReadJournalConfig(c: Config) extends DynamoDBConfig {
   val MaxBatchWrite: Int = c.getInt("aws-api-limits.max-batch-write")
   val MaxItemSize: Int = c.getInt("aws-api-limits.max-item-size")
 
+  val PersistenceIdsIndexName: String = c.getString("persistence-ids-index-name")
+
   override def toString: String =
     "DynamoDBReadJournalConfig(" +
     "Table:" + Table +

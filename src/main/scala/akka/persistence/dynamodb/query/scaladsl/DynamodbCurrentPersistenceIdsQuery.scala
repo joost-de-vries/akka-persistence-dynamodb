@@ -1,9 +1,9 @@
 package akka.persistence.dynamodb.query.scaladsl
 
 import akka.NotUsed
-import akka.persistence.dynamodb.query.ReadJournalSettingsProvider
+import akka.persistence.dynamodb.query.{ReadJournalSettingsProvider, RichOption}
 import akka.persistence.dynamodb.query.scaladsl.CreatePersistenceIdsIndex.createPersistenceIdsIndexRequest
-import akka.persistence.dynamodb.query.scaladsl.DynamodbCurrentPersistenceIdsQuery.{RichNumber, RichOption, SourceLazyOps}
+import akka.persistence.dynamodb.query.scaladsl.DynamodbCurrentPersistenceIdsQuery.{RichNumber, SourceLazyOps}
 import akka.persistence.dynamodb.query.scaladsl.PersistenceIdsResult.RichPersistenceIdsResult
 import akka.persistence.dynamodb.{ActorSystemProvider, DynamoProvider, LoggingProvider}
 import akka.persistence.query.scaladsl.CurrentPersistenceIdsQuery
@@ -98,7 +98,7 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
     def queryRequest(exclusiveStartKey: Option[java.util.Map[String, AttributeValue]]): QueryRequest = {
       val req = new QueryRequest()
         .withTableName(readJournalSettings.Table)
-        .withIndexName("persistence-ids-idx")
+        .withIndexName(readJournalSettings.PersistenceIdsIndexName)
         .withProjectionExpression("par")
         .withKeyConditionExpression("num = :n")
         .withExpressionAttributeValues(Map(":n" -> 1.toAttribute).asJava)
@@ -142,13 +142,6 @@ object DynamodbCurrentPersistenceIdsQuery {
 
   implicit class RichNumber(val n: Int) extends AnyVal {
     def toAttribute: AttributeValue = new AttributeValue().withN(n.toString)
-  }
-
-  implicit class RichOption[+A](val option: Option[A]) extends AnyVal {
-    def toSource: Source[A, NotUsed] = option match {
-        case Some(value) => Source.single(value)
-        case None => Source.empty
-      }
   }
 
   implicit class SourceLazyOps[E, M](val src: Source[E, M]) extends AnyVal {
@@ -198,14 +191,14 @@ trait CreatePersistenceIdsIndex { self: ReadJournalSettingsProvider with DynamoP
 
   /** Update the journal table to add the Global Secondary Index 'persistence-ids-idx' that's required by [[DynamodbCurrentPersistenceIdsQuery.currentPersistenceIdsByPageQuery]] */
   def createPersistenceIdsIndex(): Future[UpdateTableResult] =
-    dynamo.updateTable(createPersistenceIdsIndexRequest(tableName = readJournalSettings.Table))
+    dynamo.updateTable(createPersistenceIdsIndexRequest(indexName = readJournalSettings.PersistenceIdsIndexName, tableName = readJournalSettings.Table))
 }
 
 object CreatePersistenceIdsIndex {
 
-  def createPersistenceIdsIndexRequest(tableName: String): UpdateTableRequest = {
+  def createPersistenceIdsIndexRequest(indexName: String, tableName: String): UpdateTableRequest = {
     val creatIndex = new CreateGlobalSecondaryIndexAction()
-      .withIndexName("persistence-ids-idx")
+      .withIndexName(indexName)
       .withKeySchema(new KeySchemaElement().withAttributeName("num").withKeyType(KeyType.HASH))
       .withProjection(new Projection().withProjectionType(ProjectionType.KEYS_ONLY))
     val update = new GlobalSecondaryIndexUpdate().withCreate(creatIndex)

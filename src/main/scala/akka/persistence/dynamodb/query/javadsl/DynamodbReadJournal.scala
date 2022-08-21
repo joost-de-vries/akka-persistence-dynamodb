@@ -5,6 +5,32 @@ import akka.persistence.dynamodb.query.scaladsl.{DynamodbReadJournal => ScalaDyn
 import akka.persistence.query.EventEnvelope
 import akka.stream.javadsl.Source
 
+object DynamodbReadJournal {
+  /**
+   * The default identifier for [[DynamodbReadJournal]] to be used with
+   * `akka.persistence.query.PersistenceQuery#readJournalFor`.
+   *
+   * The value is `"dynamodb-read-journal"` and corresponds
+   * to the absolute path to the read journal configuration entry.
+   */
+  val Identifier = "dynamodb-read-journal"
+}
+/**
+ * Java API: `akka.persistence.query.javadsl.ReadJournal` implementation for Dynamodb.
+ *
+ * It is retrieved with:
+ * {{{
+ * DynamodbReadJournal queries =
+ *   PersistenceQuery.get(system).getReadJournalFor(DynamodbReadJournal.class, DynamodbReadJournal.Identifier());
+ * }}}
+ *
+ * Corresponding Scala API is in [[akka.persistence.dynamodb.query.scaladsl.DynamodbReadJournal]].
+ *
+ * Configuration settings can be defined in the configuration section with the
+ * absolute path corresponding to the identifier, which is `"dynamodb-read-journal"`
+ * for the default [[DynamodbReadJournal#Identifier]]. See `reference.conf`.
+ *
+ */
 class DynamodbReadJournal(scaladslReadJournal: ScalaDynamodbReadJournal)
     extends akka.persistence.query.javadsl.ReadJournal
     //    with akka.persistence.query.javadsl.EventsByTagQuery

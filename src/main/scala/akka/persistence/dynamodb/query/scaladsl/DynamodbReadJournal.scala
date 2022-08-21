@@ -11,7 +11,7 @@ import akka.stream.{Materializer, SystemMaterializer}
 import com.typesafe.config.Config
 
 /**
- * Scala API `akka.persistence.query.scaladsl.ReadJournal` implementation for Cassandra.
+ * Scala API `akka.persistence.query.scaladsl.ReadJournal` implementation for Dynamodb.
  *
  * It is retrieved with:
  * {{{
@@ -22,7 +22,7 @@ import com.typesafe.config.Config
  *
  * Configuration settings can be defined in the configuration section with the
  * absolute path corresponding to the identifier, which is `"dynamodb-read-journal"`
- * for the default [[CassandraReadJournal#Identifier]]. See `reference.conf`.
+ * for the default [[DynamodbReadJournal#Identifier]]. See `reference.conf`.
  */
 class DynamodbReadJournal(config: Config, configPath: String)(implicit val system: ExtendedActorSystem)
     extends ReadJournal
