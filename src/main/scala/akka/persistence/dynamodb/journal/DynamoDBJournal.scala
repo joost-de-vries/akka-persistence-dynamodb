@@ -4,15 +4,15 @@
 package akka.persistence.dynamodb.journal
 
 import java.nio.ByteBuffer
-import java.util.{HashMap => JHMap, Map => JMap}
+import java.util.{ HashMap => JHMap, Map => JMap }
 import akka.Done
-import akka.actor.{ActorLogging, ActorRef, ActorRefFactory, ActorSystem, ExtendedActorSystem}
-import akka.event.{Logging, LoggingAdapter}
+import akka.actor.{ ActorLogging, ActorRef, ActorRefFactory, ActorSystem, ExtendedActorSystem }
+import akka.event.{ Logging, LoggingAdapter }
 import akka.pattern.pipe
 import akka.persistence.journal.AsyncWriteJournal
-import akka.persistence.{AtomicWrite, Persistence, PersistentRepr}
-import akka.serialization.{AsyncSerializer, Serialization, SerializationExtension}
-import akka.stream.{ActorMaterializer, Materializer, SystemMaterializer}
+import akka.persistence.{ AtomicWrite, Persistence, PersistentRepr }
+import akka.serialization.{ AsyncSerializer, Serialization, SerializationExtension }
+import akka.stream.{ ActorMaterializer, Materializer, SystemMaterializer }
 import akka.util.ByteString
 import com.amazonaws.AmazonServiceException
 import com.amazonaws.auth.BasicAWSCredentials
@@ -21,8 +21,8 @@ import com.amazonaws.services.dynamodbv2.model._
 import com.typesafe.config.Config
 
 import scala.collection.immutable
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Failure, Success, Try }
 import scala.util.control.NoStackTrace
 import akka.actor.TypedActor.context
 
@@ -75,16 +75,20 @@ class DynamoDBJournal(config: Config)
     with DynamoDBRecovery
     with DynamoDBJournalRequests
     with ActorLogging
-    with DynamoProvider with JournalSettingsProvider with ActorSystemProvider with MaterializerProvider with LoggingProvider with JournalKeys with SerializationProvider
-    {
+    with DynamoProvider
+    with JournalSettingsProvider
+    with ActorSystemProvider
+    with MaterializerProvider
+    with LoggingProvider
+    with JournalKeys
+    with SerializationProvider {
   import context.dispatcher
 
-      protected implicit val system: ExtendedActorSystem = context.system.asInstanceOf[ExtendedActorSystem]
-      implicit val materializer :Materializer = SystemMaterializer(context.system).materializer
+  protected implicit val system: ExtendedActorSystem = context.system.asInstanceOf[ExtendedActorSystem]
+  implicit val materializer: Materializer            = SystemMaterializer(context.system).materializer
 
-  val extension     = Persistence(context.system)
+  val extension                    = Persistence(context.system)
   val serialization: Serialization = SerializationExtension(context.system)
-
 
   val journalSettings = new DynamoDBJournalConfig(config)
 

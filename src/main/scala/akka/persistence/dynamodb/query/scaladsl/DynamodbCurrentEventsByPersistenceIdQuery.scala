@@ -2,12 +2,12 @@ package akka.persistence.dynamodb.query.scaladsl
 
 import akka.NotUsed
 import akka.persistence.PersistentRepr
-import akka.persistence.dynamodb.{ActorSystemProvider, DynamoProvider, LoggingProvider, MaterializerProvider}
+import akka.persistence.dynamodb.{ ActorSystemProvider, DynamoProvider, LoggingProvider, MaterializerProvider }
 import akka.persistence.dynamodb.journal._
 import akka.persistence.dynamodb.query.ReadJournalSettingsProvider
 import akka.persistence.dynamodb.query.scaladsl.DynamodbCurrentEventsByPersistenceIdQuery.RichPersistenceRepr
 import akka.persistence.query.scaladsl.CurrentEventsByPersistenceIdQuery
-import akka.persistence.query.{EventEnvelope, Sequence}
+import akka.persistence.query.{ EventEnvelope, Sequence }
 import akka.stream.scaladsl.Source
 
 trait DynamodbCurrentEventsByPersistenceIdQuery extends CurrentEventsByPersistenceIdQuery with DynamoDBRecovery {
@@ -31,9 +31,16 @@ trait DynamodbCurrentEventsByPersistenceIdQuery extends CurrentEventsByPersisten
    * - a dynamodb <code>query</code> to get lowest sequenceNr
    * - a <code>query</code> per partition. Doing follow calls to get more pages if necessary.
    */
-  override def currentEventsByPersistenceId(persistenceId: String, fromSequenceNr: Long, toSequenceNr: Long): Source[EventEnvelope, NotUsed] = {
+  override def currentEventsByPersistenceId(
+      persistenceId: String,
+      fromSequenceNr: Long,
+      toSequenceNr: Long): Source[EventEnvelope, NotUsed] = {
     log.debug("starting currentEventsByPersistenceId for {} from {} to {}", persistenceId, fromSequenceNr, toSequenceNr)
-    eventsStream(persistenceId = persistenceId, fromSequenceNr = fromSequenceNr, toSequenceNr = toSequenceNr, max = Int.MaxValue)
+    eventsStream(
+      persistenceId = persistenceId,
+      fromSequenceNr = fromSequenceNr,
+      toSequenceNr = toSequenceNr,
+      max = Int.MaxValue)
       .map(_.toEventEnvelope)
       .log(s"currentEventsByPersistenceId for $persistenceId from $fromSequenceNr to $toSequenceNr")
   }
@@ -41,7 +48,8 @@ trait DynamodbCurrentEventsByPersistenceIdQuery extends CurrentEventsByPersisten
 
 object DynamodbCurrentEventsByPersistenceIdQuery {
   implicit class RichPersistenceRepr(val persistenceRepr: PersistentRepr) extends AnyVal {
-    def toEventEnvelope = new EventEnvelope(
+    def toEventEnvelope =
+      new EventEnvelope(
         offset = Sequence(persistenceRepr.sequenceNr),
         persistenceId = persistenceRepr.persistenceId,
         sequenceNr = persistenceRepr.sequenceNr,

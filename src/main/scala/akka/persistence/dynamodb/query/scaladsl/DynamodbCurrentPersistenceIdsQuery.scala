@@ -1,11 +1,11 @@
 package akka.persistence.dynamodb.query.scaladsl
 
 import akka.NotUsed
-import akka.persistence.dynamodb.query.{ReadJournalSettingsProvider, RichOption}
+import akka.persistence.dynamodb.query.{ ReadJournalSettingsProvider, RichOption }
 import akka.persistence.dynamodb.query.scaladsl.CreatePersistenceIdsIndex.createPersistenceIdsIndexRequest
-import akka.persistence.dynamodb.query.scaladsl.DynamodbCurrentPersistenceIdsQuery.{RichNumber, SourceLazyOps}
+import akka.persistence.dynamodb.query.scaladsl.DynamodbCurrentPersistenceIdsQuery.{ RichNumber, SourceLazyOps }
 import akka.persistence.dynamodb.query.scaladsl.PersistenceIdsResult.RichPersistenceIdsResult
-import akka.persistence.dynamodb.{ActorSystemProvider, DynamoProvider, LoggingProvider}
+import akka.persistence.dynamodb.{ ActorSystemProvider, DynamoProvider, LoggingProvider }
 import akka.persistence.query.scaladsl.CurrentPersistenceIdsQuery
 import akka.stream.scaladsl.Source
 import akka.util.ccompat.JavaConverters._
@@ -15,7 +15,8 @@ import java.util
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { self: ReadJournalSettingsProvider with DynamoProvider with ActorSystemProvider with LoggingProvider =>
+trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery {
+  self: ReadJournalSettingsProvider with DynamoProvider with ActorSystemProvider with LoggingProvider =>
 
   /**
    * Same type of query as [[akka.persistence.query.scaladsl.PersistenceIdsQuery.persistenceIds()]] but the stream
@@ -27,9 +28,7 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
    */
   override def currentPersistenceIds(): Source[String, NotUsed] = {
     log.debug("starting currentPersistenceIds")
-    currentPersistenceIdsQueryInternal()
-      .mapConcat(seq => seq.toList)
-      .log("currentPersistenceIds")
+    currentPersistenceIdsQueryInternal().mapConcat(seq => seq.toList).log("currentPersistenceIds")
   }
 
   /**
@@ -38,8 +37,7 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
    */
   def currentPersistenceIdsByPageScan(): Source[Seq[String], NotUsed] = {
     log.debug("starting currentPersistenceIdsByPageScan")
-    currentPersistenceIdsScanInternal()
-      .log("currentPersistenceIdsByPageScan")
+    currentPersistenceIdsScanInternal().log("currentPersistenceIdsByPageScan")
   }
 
   /**
@@ -49,8 +47,7 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
    */
   def currentPersistenceIdsByPageQuery(): Source[Seq[String], NotUsed] = {
     log.debug("starting currentPersistenceIdsByPageQuery")
-    currentPersistenceIdsQueryInternal()
-      .log("currentPersistenceIdsByPageQuery")
+    currentPersistenceIdsQueryInternal().log("currentPersistenceIdsByPageQuery")
   }
 
   private def currentPersistenceIdsScanInternal(): Source[Seq[String], NotUsed] = {
@@ -63,13 +60,15 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
     currentPersistenceIdsByPageInternal(queryPersistenceIds)
   }
 
-  private def currentPersistenceIdsByPageInternal[Result: PersistenceIdsResult](getPersistenceIds: Option[java.util.Map[String, AttributeValue]] => Future[Result]): Source[Seq[String], NotUsed] = {
+  private def currentPersistenceIdsByPageInternal[Result: PersistenceIdsResult](
+      getPersistenceIds: Option[java.util.Map[String, AttributeValue]] => Future[Result])
+      : Source[Seq[String], NotUsed] = {
     import system.dispatcher
     type ResultSource = Source[Option[Result], NotUsed]
 
     def nextCall(maybePreviousResult: Option[Result]): Future[Option[Result]] = {
       val maybeNextResult = for {
-        previousResult <- maybePreviousResult
+        previousResult   <- maybePreviousResult
         nextEvaluatedKey <- previousResult.nextEvaluatedKey
       } yield getPersistenceIds(Some(nextEvaluatedKey)).map(Some(_))
 
@@ -89,9 +88,8 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
       .takeWhile(_.isDefined)
       .flatMapConcat(_.toSource)
       .map(persistenceIdsResult =>
-        persistenceIdsResult.toPersistenceIdsPage
-          .map ( rawPersistenceId => parsePersistenceId(rawPersistenceId = rawPersistenceId, journalName = readJournalSettings.JournalName) )
-      )
+        persistenceIdsResult.toPersistenceIdsPage.map(rawPersistenceId =>
+          parsePersistenceId(rawPersistenceId = rawPersistenceId, journalName = readJournalSettings.JournalName)))
   }
 
   private def queryPersistenceIds(exclusiveStartKey: Option[java.util.Map[String, AttributeValue]]) = {
@@ -130,13 +128,16 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery { se
       rawPersistenceId.substring(prefixLength, startPostfix)
     } catch {
       case NonFatal(_) =>
-        log.error("Could not parse raw persistence id '{}' using journal name '{}'. Returning it unparsed.", rawPersistenceId, journalName)
+        log.error(
+          "Could not parse raw persistence id '{}' using journal name '{}'. Returning it unparsed.",
+          rawPersistenceId,
+          journalName)
         rawPersistenceId
     }
 }
 
 object DynamodbCurrentPersistenceIdsQuery {
-    implicit class RichString(val s: String) extends AnyVal {
+  implicit class RichString(val s: String) extends AnyVal {
     def toAttribute: AttributeValue = new AttributeValue().withS(s)
   }
 
@@ -149,25 +150,26 @@ object DynamodbCurrentPersistenceIdsQuery {
     // see https://github.com/akka/akka/issues/23044
     // when migrating to akka 2.6.x use akka's concatLazy
     def concatLazy[M1](src2: => Source[E, M1]): Source[E, NotUsed] =
-      Source(List(() => src, () => src2)).flatMapConcat(_ ())
+      Source(List(() => src, () => src2)).flatMapConcat(_())
   }
 }
 
 // The commonality between QueryResult and ScanResult which don't share an interface
-private [query] trait PersistenceIdsResult[A] {
+private[query] trait PersistenceIdsResult[A] {
   def toPersistenceIdsPage(result: A): Seq[String]
 
   def nextEvaluatedKey(result: A): Option[util.Map[String, AttributeValue]]
 }
 
-private [query] object PersistenceIdsResult {
+private[query] object PersistenceIdsResult {
 
   implicit val persistenceIdsQueryResult: PersistenceIdsResult[QueryResult] = new PersistenceIdsResult[QueryResult] {
     override def toPersistenceIdsPage(result: QueryResult): Seq[String] =
       result.getItems.asScala.map(item => item.get("par").getS).toSeq
 
     override def nextEvaluatedKey(result: QueryResult): Option[util.Map[String, AttributeValue]] =
-      if (result.getLastEvaluatedKey != null && !result.getLastEvaluatedKey.isEmpty) Some(result.getLastEvaluatedKey) else None
+      if (result.getLastEvaluatedKey != null && !result.getLastEvaluatedKey.isEmpty) Some(result.getLastEvaluatedKey)
+      else None
   }
 
   implicit val persistenceIdsScanResult: PersistenceIdsResult[ScanResult] = new PersistenceIdsResult[ScanResult] {
@@ -175,23 +177,29 @@ private [query] object PersistenceIdsResult {
       result.getItems.asScala.map(item => item.get("par").getS).toSeq
 
     override def nextEvaluatedKey(result: ScanResult): Option[util.Map[String, AttributeValue]] =
-      if (result.getLastEvaluatedKey != null && !result.getLastEvaluatedKey.isEmpty) Some(result.getLastEvaluatedKey) else None
+      if (result.getLastEvaluatedKey != null && !result.getLastEvaluatedKey.isEmpty) Some(result.getLastEvaluatedKey)
+      else None
   }
 
   implicit class RichPersistenceIdsResult[Result](val result: Result) extends AnyVal {
     def toPersistenceIdsPage(implicit persistenceIdsResult: PersistenceIdsResult[Result]): Seq[String] =
       persistenceIdsResult.toPersistenceIdsPage(result)
 
-    def nextEvaluatedKey(implicit persistenceIdsResult: PersistenceIdsResult[Result]): Option[util.Map[String, AttributeValue]] =
+    def nextEvaluatedKey(implicit
+        persistenceIdsResult: PersistenceIdsResult[Result]): Option[util.Map[String, AttributeValue]] =
       persistenceIdsResult.nextEvaluatedKey(result)
   }
 }
 
-trait CreatePersistenceIdsIndex { self: ReadJournalSettingsProvider with DynamoProvider with ActorSystemProvider with LoggingProvider =>
+trait CreatePersistenceIdsIndex {
+  self: ReadJournalSettingsProvider with DynamoProvider with ActorSystemProvider with LoggingProvider =>
 
   /** Update the journal table to add the Global Secondary Index 'persistence-ids-idx' that's required by [[DynamodbCurrentPersistenceIdsQuery.currentPersistenceIdsByPageQuery]] */
   def createPersistenceIdsIndex(): Future[UpdateTableResult] =
-    dynamo.updateTable(createPersistenceIdsIndexRequest(indexName = readJournalSettings.PersistenceIdsIndexName, tableName = readJournalSettings.Table))
+    dynamo.updateTable(
+      createPersistenceIdsIndexRequest(
+        indexName = readJournalSettings.PersistenceIdsIndexName,
+        tableName = readJournalSettings.Table))
 }
 
 object CreatePersistenceIdsIndex {
@@ -202,7 +210,8 @@ object CreatePersistenceIdsIndex {
       .withKeySchema(new KeySchemaElement().withAttributeName("num").withKeyType(KeyType.HASH))
       .withProjection(new Projection().withProjectionType(ProjectionType.KEYS_ONLY))
     val update = new GlobalSecondaryIndexUpdate().withCreate(creatIndex)
-    new UpdateTableRequest().withTableName(tableName)
+    new UpdateTableRequest()
+      .withTableName(tableName)
       .withGlobalSecondaryIndexUpdates(update)
       .withAttributeDefinitions(new AttributeDefinition().withAttributeName("num").withAttributeType("N"))
   }

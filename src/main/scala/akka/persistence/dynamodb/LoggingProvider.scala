@@ -2,7 +2,7 @@ package akka.persistence.dynamodb
 
 import akka.actor.ExtendedActorSystem
 import akka.event.LoggingAdapter
-import akka.persistence.dynamodb.journal.{DynamoDBHelper, DynamoDBJournalConfig}
+import akka.persistence.dynamodb.journal.{ DynamoDBHelper, DynamoDBJournalConfig }
 import akka.stream.Materializer
 
 trait LoggingProvider {
