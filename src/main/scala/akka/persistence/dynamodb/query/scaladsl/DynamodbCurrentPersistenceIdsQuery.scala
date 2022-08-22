@@ -125,8 +125,8 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery {
     try {
       val prefixLength = journalName.length + 3
       val startPostfix = rawPersistenceId.lastIndexOf("-")
-      val postfix = rawPersistenceId.substring(startPostfix)
-      val partitionNr = postfix.substring(postfix.lastIndexOf("-")).toInt
+      val postfix      = rawPersistenceId.substring(startPostfix)
+      val partitionNr  = postfix.substring(postfix.lastIndexOf("-")).toInt
       if (partitionNr == 0)
         Some(rawPersistenceId.substring(prefixLength, startPostfix))
       else
