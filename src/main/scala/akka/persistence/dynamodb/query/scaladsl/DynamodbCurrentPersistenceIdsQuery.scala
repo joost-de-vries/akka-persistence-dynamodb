@@ -88,7 +88,7 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery {
       .takeWhile(_.isDefined)
       .flatMapConcat(_.toSource)
       .map(persistenceIdsResult =>
-        persistenceIdsResult.toPersistenceIdsPage.map(rawPersistenceId =>
+        persistenceIdsResult.toPersistenceIdsPage.flatMap(rawPersistenceId =>
           parsePersistenceId(rawPersistenceId = rawPersistenceId, journalName = readJournalSettings.JournalName)))
   }
 
@@ -121,18 +121,23 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery {
 
   // persistence id is formatted as follows journal-P-98adb33a-a94d-4ec8-a279-4570e16a0c14-0
   // see DynamoDBJournal.messagePartitionKeyFromGroupNr
-  private def parsePersistenceId(rawPersistenceId: String, journalName: String): String =
+  private def parsePersistenceId(rawPersistenceId: String, journalName: String): Option[String] =
     try {
       val prefixLength = journalName.length + 3
       val startPostfix = rawPersistenceId.lastIndexOf("-")
-      rawPersistenceId.substring(prefixLength, startPostfix)
+      val postfix = rawPersistenceId.substring(startPostfix)
+      val partitionNr = postfix.substring(postfix.lastIndexOf("-")).toInt
+      if (partitionNr == 0)
+        Some(rawPersistenceId.substring(prefixLength, startPostfix))
+      else
+        None
     } catch {
       case NonFatal(_) =>
         log.error(
           "Could not parse raw persistence id '{}' using journal name '{}'. Returning it unparsed.",
           rawPersistenceId,
           journalName)
-        rawPersistenceId
+        Some(rawPersistenceId)
     }
 }
 
