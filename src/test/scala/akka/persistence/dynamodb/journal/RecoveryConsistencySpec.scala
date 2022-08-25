@@ -52,11 +52,11 @@ class RecoveryConsistencySpec
 
   "DynamoDB Journal (Recovery)" must {
 
-    val repetitions = 50
-    val nrOfMessages    = 20
-    val messages = (1 to nrOfMessages).map(i => f"a-$i%04d")
-    val writes      = messages.map(m => AtomicWrite(persistentRepr(m)))
-    val probe       = TestProbe()
+    val repetitions  = 50
+    val nrOfMessages = 20
+    val messages     = (1 to nrOfMessages).map(i => f"a-$i%04d")
+    val writes       = messages.map(m => AtomicWrite(persistentRepr(m)))
+    val probe        = TestProbe()
 
     for (i <- 1 to repetitions)
       s"not return intermediate values for the highest sequence number ($i of $repetitions)" in {
@@ -68,7 +68,8 @@ class RecoveryConsistencySpec
         (1 to nrOfMessages).foreach(i => expectMsgType[WriteMessageSuccess].persistent.sequenceNr.toInt should ===(i))
         probe.expectMsg(RecoverySuccess(nrOfMessages))
 
-        val currentEvents = queries.currentEventsByPersistenceId(persistenceId, 0, 100).runWith(Sink.collection).futureValue.toSeq
+        val currentEvents =
+          queries.currentEventsByPersistenceId(persistenceId, 0, 100).runWith(Sink.collection).futureValue.toSeq
         currentEvents.map(_.event) shouldBe messages
       }
 
