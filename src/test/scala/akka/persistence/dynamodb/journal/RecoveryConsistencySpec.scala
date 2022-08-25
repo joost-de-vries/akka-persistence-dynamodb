@@ -10,14 +10,14 @@ import akka.persistence.dynamodb._
 import akka.persistence.dynamodb.query.scaladsl.DynamodbReadJournal
 import akka.persistence.query.PersistenceQuery
 import akka.stream.scaladsl.Sink
-import akka.stream.{Materializer, SystemMaterializer}
+import akka.stream.{ Materializer, SystemMaterializer }
 import akka.testkit._
 import com.amazonaws.services.dynamodbv2.model._
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalatest._
 import org.scalatest.concurrent.ScalaFutures
 
-import java.util.{HashMap => JHMap}
+import java.util.{ HashMap => JHMap }
 import scala.concurrent.duration.DurationInt
 
 class RecoveryConsistencySpec
@@ -30,7 +30,7 @@ class RecoveryConsistencySpec
     with TypeCheckedTripleEquals
     with DynamoDBUtils
     with IntegSpec {
-  override implicit val patienceConfig = PatienceConfig(15.seconds)
+  override implicit val patienceConfig = PatienceConfig(5.seconds)
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -43,18 +43,19 @@ class RecoveryConsistencySpec
     super.afterAll()
   }
 
-  override val persistenceId = "RecoveryConsistencySpec"
-  implicit val materializer: Materializer            = SystemMaterializer(system).materializer
+  override val persistenceId              = "RecoveryConsistencySpec"
+  implicit val materializer: Materializer = SystemMaterializer(system).materializer
 
-  lazy val journal           = Persistence(system).journalFor("")
+  lazy val journal = Persistence(system).journalFor("")
   lazy val queries = PersistenceQuery(system).readJournalFor[DynamodbReadJournal](DynamodbReadJournal.Identifier)
   import settings._
 
   "DynamoDB Journal (Recovery)" must {
 
     val repetitions = 50
-    val messages    = 20
-    val writes      = (1 to messages).map(i => AtomicWrite(persistentRepr(f"a-$i%04d")))
+    val nrOfMessages    = 20
+    val messages = (1 to nrOfMessages).map(i => f"a-$i%04d")
+    val writes      = messages.map(m => AtomicWrite(persistentRepr(m)))
     val probe       = TestProbe()
 
     for (i <- 1 to repetitions)
@@ -64,13 +65,11 @@ class RecoveryConsistencySpec
         journal ! WriteMessages(writes, testActor, 1)
         journal ! ReplayMessages(1, 0, Long.MaxValue, persistenceId, probe.ref)
         expectMsg(WriteMessagesSuccessful)
-        (1 to messages).foreach(i => expectMsgType[WriteMessageSuccess].persistent.sequenceNr.toInt should ===(i))
-        probe.expectMsg(RecoverySuccess(messages))
+        (1 to nrOfMessages).foreach(i => expectMsgType[WriteMessageSuccess].persistent.sequenceNr.toInt should ===(i))
+        probe.expectMsg(RecoverySuccess(nrOfMessages))
 
-//        val expectedInEventsQuery = generatedMessages.slice(messages, messages + 19)
-//
         val currentEvents = queries.currentEventsByPersistenceId(persistenceId, 0, 100).runWith(Sink.collection).futureValue.toSeq
-        println(currentEvents)
+        currentEvents.map(_.event) shouldBe messages
       }
 
     "only replay completely persisted AtomicWrites" in {
@@ -86,23 +85,23 @@ class RecoveryConsistencySpec
         Nil
       journal ! WriteMessages(more, testActor, 1)
       expectMsg(WriteMessagesSuccessful)
-      (messages + 1 to messages + 19).foreach(i => expectMsg(WriteMessageSuccess(generatedMessages(i), 1)))
+      (nrOfMessages + 1 to nrOfMessages + 19).foreach(i => expectMsg(WriteMessageSuccess(generatedMessages(i), 1)))
 
-      Seq(2, 4, 12, 15, 19).foreach(i => delete(messages + i))
+      Seq(2, 4, 12, 15, 19).foreach(i => delete(nrOfMessages + i))
 
       journal ! ReplayMessages(0, Long.MaxValue, Long.MaxValue, persistenceId, testActor)
       for {
-        i <- 1 to (messages + 19)
-        if i <= messages || (i >= (messages + 7) && i <= (messages + 9)) || i == (messages + 16)
+        i <- 1 to (nrOfMessages + 19)
+        if i <= nrOfMessages || (i >= (nrOfMessages + 7) && i <= (nrOfMessages + 9)) || i == (nrOfMessages + 16)
       } expectMsg(ReplayedMessage(generatedMessages(i)))
-      expectMsg(RecoverySuccess(messages + 18))
+      expectMsg(RecoverySuccess(nrOfMessages + 18))
 
       generatedMessages = generatedMessages.dropRight(1)
-      nextSeqNr = messages + 19
+      nextSeqNr = nrOfMessages + 19
     }
 
     "read correct highest sequence number even if a Sort=0 entry is lost" in {
-      val start = messages + 19
+      val start = nrOfMessages + 19
       val end   = (start / PartitionSize + 1) * PartitionSize
       val more  = (start to end).map(i => AtomicWrite(persistentRepr(f"e-$i")))
       journal ! WriteMessages(more, testActor, 1)
@@ -112,7 +111,7 @@ class RecoveryConsistencySpec
       delete(end)
 
       journal ! ListAll(persistenceId, testActor)
-      val ids = ((1L to (end - 1)).toSet -- Set[Long](2, 4, 12, 15).map(_ + messages)).toSeq.sorted
+      val ids = ((1L to (end - 1)).toSet -- Set[Long](2, 4, 12, 15).map(_ + nrOfMessages)).toSeq.sorted
       expectMsg(
         ListAllResult(persistenceId, Set.empty, (1L to (end / PartitionSize)).map(_ * PartitionSize).toSet, ids))
 
