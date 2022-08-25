@@ -40,12 +40,18 @@ trait DynamodbCurrentEventsByPersistenceIdQuery
       fromSequenceNr: Long,
       toSequenceNr: Long): Source[EventEnvelope, NotUsed] = {
     require(toSequenceNr <= Int.MaxValue, "toSequenceNr can't be bigger than Int.MaxValue")
+    require(fromSequenceNr < toSequenceNr, "fromSequenceNr should be smaller than toSequenceNr")
     log.debug("starting currentEventsByPersistenceId for {} from {} to {}", persistenceId, fromSequenceNr, toSequenceNr)
-    eventsStream(
-      persistenceId = persistenceId,
-      fromSequenceNr = fromSequenceNr,
-      toSequenceNr = toSequenceNr,
-      max = Int.MaxValue)
+    Source
+      .fromFuture(readSequenceNr(persistenceId = persistenceId, highest = true))
+      .flatMapConcat { highest =>
+        val end = Math.min(highest, toSequenceNr)
+        eventsStream(
+          persistenceId = persistenceId,
+          fromSequenceNr = fromSequenceNr,
+          toSequenceNr = end,
+          max = Int.MaxValue)
+      }
       .map(_.toEventEnvelope)
       .log(s"currentEventsByPersistenceId for $persistenceId from $fromSequenceNr to $toSequenceNr")
   }
@@ -61,4 +67,8 @@ object DynamodbCurrentEventsByPersistenceIdQuery {
         event = persistenceRepr.payload,
         timestamp = persistenceRepr.timestamp)
   }
+}
+object Test extends App {
+  println(s" bigger ${0 >= Int.MaxValue}")
+
 }

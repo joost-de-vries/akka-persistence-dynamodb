@@ -19,6 +19,6 @@ trait DynamodbCurrentEventsByPersistenceIdQuery extends CurrentEventsByPersisten
    */
   override def currentEventsByPersistenceId(
       persistenceId: String,
-      fromSequenceNr: Long,
-      toSequenceNr: Long): Source[EventEnvelope, NotUsed]
+      fromSequenceNr: Long = 0,
+      toSequenceNr: Long = Int.MaxValue): Source[EventEnvelope, NotUsed]
 }

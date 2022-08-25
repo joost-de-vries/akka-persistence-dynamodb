@@ -69,7 +69,7 @@ class RecoveryConsistencySpec
         probe.expectMsg(RecoverySuccess(nrOfMessages))
 
         val currentEvents =
-          queries.currentEventsByPersistenceId(persistenceId, 0, 100).runWith(Sink.collection).futureValue.toSeq
+          queries.currentEventsByPersistenceId(persistenceId).runWith(Sink.collection).futureValue.toSeq
         currentEvents.map(_.event) shouldBe messages
       }
 

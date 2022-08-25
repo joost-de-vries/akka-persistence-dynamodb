@@ -232,8 +232,6 @@ trait DynamoDBRecovery extends AsyncReplayMessages {
       val start = Math.max(fromSequenceNr, lowest)
       val async = ReplayParallelism > 1
 
-      println(s"Found lowest $lowest")
-      //rangeSource(start, toSequenceNr)
       Source(start to toSequenceNr)
         .via(DynamoPartitionGrouped)
         .mapAsync(ReplayParallelism)(batch => getPartitionItems(persistenceId, batch).map(_.sorted))
@@ -545,26 +543,4 @@ trait DynamoDBRecovery extends AsyncReplayMessages {
         log.error(ex, "operation failed: " + desc)
         ex
       })
-}
-
-object Test extends App {
-  implicit val actorSystem  = ActorSystem()
-  implicit val materializer = ActorMaterializer()
-  val source                = rangeSource(3, Long.MaxValue)
-  val otherSource           = eagerRangeSource(3, Long.MaxValue)
-
-  Await.result(source.map(log("eager")).take(3).runWith(Sink.ignore), 10.seconds)
-
-  def rangeSource(from: Long, to: Long): Source[Long, NotUsed] =
-    Source
-      .unfold(from) { s =>
-        val newValue = s + 1; Some((newValue, newValue))
-      }
-      .take(to)
-  def eagerRangeSource(from: Long, to: Long): Source[Long, NotUsed] = Source(from to to)
-
-  def log(msg: String)(value: Long): Long = {
-    println(s"$msg $value")
-    value
-  }
 }
