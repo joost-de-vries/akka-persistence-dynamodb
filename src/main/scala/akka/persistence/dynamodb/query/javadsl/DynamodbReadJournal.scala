@@ -3,6 +3,8 @@ package akka.persistence.dynamodb.query.javadsl
 import akka.NotUsed
 import akka.persistence.query.EventEnvelope
 import akka.stream.javadsl.Source
+import akka.persistence.dynamodb.query.scaladsl
+import akka.persistence.query.javadsl.{ CurrentEventsByPersistenceIdQuery, CurrentPersistenceIdsQuery }
 
 object DynamodbReadJournal {
 
@@ -31,19 +33,54 @@ object DynamodbReadJournal {
  * absolute path corresponding to the identifier, which is `"dynamodb-read-journal"`
  * for the default [[DynamodbReadJournal#Identifier]]. See `reference.conf`.
  */
-class DynamodbReadJournal(scaladslReadJournal: DynamodbReadJournal)
+class DynamodbReadJournal(scaladslReadJournal: scaladsl.DynamodbReadJournal)
     extends akka.persistence.query.javadsl.ReadJournal
     //    with akka.persistence.query.javadsl.EventsByTagQuery
-    with akka.persistence.query.javadsl.CurrentEventsByPersistenceIdQuery
-    with akka.persistence.query.javadsl.CurrentPersistenceIdsQuery
+    with CurrentEventsByPersistenceIdQuery
+    with CurrentPersistenceIdsQuery
     //with akka.persistence.query.javadsl.CurrentPersistenceIdsQuery
     {
-  def currentPersistenceIds(): Source[String, NotUsed] =
-    scaladslReadJournal.currentPersistenceIds().asJava
 
+  /**
+   * Same type of query as [[akka.persistence.query.javadsl.EventsByPersistenceIdQuery.eventsByPersistenceId]]
+   * but the event stream is completed immediately when it reaches the end of
+   * the results. Events that are stored after the query is completed are
+   * not included in the event stream.
+   *
+   * Execution plan:
+   * - a dynamodb <code>query</code> to get lowest sequenceNr
+   * - a <code>query</code> per partition. Doing follow calls to get more pages if necessary.
+   */
   def currentEventsByPersistenceId(
       persistenceId: String,
       fromSequenceNr: Long,
       toSequenceNr: Long): Source[EventEnvelope, NotUsed] =
     scaladslReadJournal.currentEventsByPersistenceId(persistenceId, fromSequenceNr, toSequenceNr).asJava
+
+  /**
+   * Same type of query as [[akka.persistence.query.javadsl.PersistenceIdsQuery.persistenceIds()]] but the stream
+   * is completed immediately when it reaches the end of the "result set". Persistent
+   * actors that are created after the query is completed are not included in the stream.
+   *
+   * A dynamodb <code>query</code> will be performed against a Global Secondary Index 'persistence-ids-idx'.
+   * See [[akka.persistence.dynamodb.query.scaladsl.CreatePersistenceIdsIndex.createPersistenceIdsIndexRequest]]
+   */
+  def currentPersistenceIds(): Source[String, NotUsed] =
+    scaladslReadJournal.currentPersistenceIds().asJava
+
+  /**
+   * Persistence ids are returned page by page.
+   * A dynamodb <code>scan</code> will be performed. Results will be paged per 1 MB size.
+   */
+  def currentPersistenceIdsByPageScan(): Source[List[String], NotUsed] =
+    scaladslReadJournal.currentPersistenceIdsByPageScan().map(_.toList).asJava
+
+  /**
+   * Persistence ids are returned page by page.
+   * A dynamodb <code>query</code> will be performed against a Global Secondary Index 'persistence-ids-idx'.
+   * See [[akka.persistence.dynamodb.query.scaladsl.CreatePersistenceIdsIndex.createPersistenceIdsIndexRequest]]
+   */
+  def currentPersistenceIdsByPageQuery(): Source[List[String], NotUsed] =
+    scaladslReadJournal.currentPersistenceIdsByPageQuery().map(_.toList).asJava
+
 }
