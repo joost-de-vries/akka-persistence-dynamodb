@@ -3,16 +3,22 @@
  */
 package akka.persistence.dynamodb.journal
 
+import akka.actor.ActorSystem
+import akka.persistence.JournalProtocol._
+import akka.persistence._
+import akka.persistence.dynamodb._
+import akka.persistence.dynamodb.query.scaladsl.DynamodbReadJournal
+import akka.persistence.query.PersistenceQuery
+import akka.stream.scaladsl.Sink
+import akka.stream.{Materializer, SystemMaterializer}
+import akka.testkit._
+import com.amazonaws.services.dynamodbv2.model._
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalatest._
 import org.scalatest.concurrent.ScalaFutures
-import akka.actor.ActorSystem
-import akka.persistence._
-import akka.persistence.JournalProtocol._
-import akka.testkit._
-import com.amazonaws.services.dynamodbv2.model._
-import java.util.{ HashMap => JHMap }
-import akka.persistence.dynamodb._
+
+import java.util.{HashMap => JHMap}
+import scala.concurrent.duration.DurationInt
 
 class RecoveryConsistencySpec
     extends TestKit(ActorSystem("FailureReportingSpec"))
@@ -24,6 +30,7 @@ class RecoveryConsistencySpec
     with TypeCheckedTripleEquals
     with DynamoDBUtils
     with IntegSpec {
+  override implicit val patienceConfig = PatienceConfig(15.seconds)
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -37,8 +44,10 @@ class RecoveryConsistencySpec
   }
 
   override val persistenceId = "RecoveryConsistencySpec"
-  lazy val journal           = Persistence(system).journalFor("")
+  implicit val materializer: Materializer            = SystemMaterializer(system).materializer
 
+  lazy val journal           = Persistence(system).journalFor("")
+  lazy val queries = PersistenceQuery(system).readJournalFor[DynamodbReadJournal](DynamodbReadJournal.Identifier)
   import settings._
 
   "DynamoDB Journal (Recovery)" must {
@@ -57,9 +66,15 @@ class RecoveryConsistencySpec
         expectMsg(WriteMessagesSuccessful)
         (1 to messages).foreach(i => expectMsgType[WriteMessageSuccess].persistent.sequenceNr.toInt should ===(i))
         probe.expectMsg(RecoverySuccess(messages))
+
+//        val expectedInEventsQuery = generatedMessages.slice(messages, messages + 19)
+//
+        val currentEvents = queries.currentEventsByPersistenceId(persistenceId, 0, 100).runWith(Sink.collection).futureValue.toSeq
+        println(currentEvents)
       }
 
     "only replay completely persisted AtomicWrites" in {
+
       val more =
         AtomicWrite((1 to 3).map(i => persistentRepr(f"b-$i"))) ::   // hole in the middle
         AtomicWrite((4 to 6).map(i => persistentRepr(f"b-$i"))) ::   // hole in the beginning

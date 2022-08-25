@@ -4,25 +4,21 @@
 package akka.persistence.dynamodb.journal
 
 import akka.NotUsed
-
-import java.util.{ Collections, Map => JMap }
-import java.util.function.Consumer
+import akka.actor.{ ActorSystem, ExtendedActorSystem }
 import akka.persistence.PersistentRepr
-import akka.persistence.journal.AsyncRecovery
-import com.amazonaws.services.dynamodbv2.model._
-
-import scala.jdk.CollectionConverters._
-import scala.collection.immutable
-import scala.concurrent.Future
-import akka.stream.scaladsl._
-
-import java.util.ArrayList
-import akka.actor.{ Actor, ExtendedActorSystem }
-import akka.event.LoggingAdapter
-import akka.stream.stage._
-import akka.stream._
 import akka.persistence.dynamodb._
 import akka.serialization.{ AsyncSerializer, Serialization }
+import akka.stream._
+import akka.stream.scaladsl._
+import akka.stream.stage._
+import com.amazonaws.services.dynamodbv2.model._
+
+import java.util.function.Consumer
+import java.util.{ ArrayList, Collections, Map => JMap }
+import scala.collection.immutable
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ Await, Future }
+import scala.jdk.CollectionConverters._
 
 object DynamoDBRecovery {
   val ItemAttributesForReplay: Seq[String] = Seq(
@@ -45,6 +41,12 @@ object DynamoDBRecovery {
     def ids: Seq[Long]                   = items.map(itemToSeq).sorted
     private def itemToSeq(i: Item): Long = map(i.get(Key)) * PartitionSize + i.get(Sort).getN.toInt
   }
+  def rangeSource(from: Long, to: Long): Source[Long, NotUsed] =
+    Source
+      .unfold(from) { s =>
+        val newValue = s + 1; Some((newValue, newValue))
+      }
+      .take(to)
 }
 
 /**
@@ -229,6 +231,9 @@ trait DynamoDBRecovery extends AsyncReplayMessages {
     Source.fromFuture(readSequenceNr(persistenceId, highest = false)).flatMapConcat { lowest =>
       val start = Math.max(fromSequenceNr, lowest)
       val async = ReplayParallelism > 1
+
+      println(s"Found lowest $lowest")
+      //rangeSource(start, toSequenceNr)
       Source(start to toSequenceNr)
         .via(DynamoPartitionGrouped)
         .mapAsync(ReplayParallelism)(batch => getPartitionItems(persistenceId, batch).map(_.sorted))
@@ -540,4 +545,26 @@ trait DynamoDBRecovery extends AsyncReplayMessages {
         log.error(ex, "operation failed: " + desc)
         ex
       })
+}
+
+object Test extends App {
+  implicit val actorSystem  = ActorSystem()
+  implicit val materializer = ActorMaterializer()
+  val source                = rangeSource(3, Long.MaxValue)
+  val otherSource           = eagerRangeSource(3, Long.MaxValue)
+
+  Await.result(source.map(log("eager")).take(3).runWith(Sink.ignore), 10.seconds)
+
+  def rangeSource(from: Long, to: Long): Source[Long, NotUsed] =
+    Source
+      .unfold(from) { s =>
+        val newValue = s + 1; Some((newValue, newValue))
+      }
+      .take(to)
+  def eagerRangeSource(from: Long, to: Long): Source[Long, NotUsed] = Source(from to to)
+
+  def log(msg: String)(value: Long): Long = {
+    println(s"$msg $value")
+    value
+  }
 }

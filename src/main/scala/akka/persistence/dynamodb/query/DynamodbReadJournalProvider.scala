@@ -2,10 +2,10 @@ package akka.persistence.dynamodb.query
 
 import akka.actor.ExtendedActorSystem
 import akka.persistence.dynamodb.query.javadsl.{ DynamodbReadJournal => JavaDynamodbReadJournal }
-import akka.persistence.dynamodb.query.scaladsl.{ DynamodbReadJournal => ScalaDynamodbReadJournal }
-import akka.persistence.query.scaladsl.{ ReadJournal => ScalaReadJournal }
+import akka.persistence.dynamodb.query.scaladsl.internal.{ DynamodbReadJournal => ScalaDynamodbReadJournal }
+import akka.persistence.query.ReadJournalProvider
 import akka.persistence.query.javadsl.{ ReadJournal => JavaReadJournal }
-import akka.persistence.query.{ ReadJournalProvider }
+import akka.persistence.query.scaladsl.{ ReadJournal => ScalaReadJournal }
 import com.typesafe.config.Config
 
 class DynamodbReadJournalProvider(system: ExtendedActorSystem, config: Config, configPath: String)
