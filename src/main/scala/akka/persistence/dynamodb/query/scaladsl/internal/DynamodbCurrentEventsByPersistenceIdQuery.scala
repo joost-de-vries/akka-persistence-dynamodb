@@ -68,7 +68,3 @@ object DynamodbCurrentEventsByPersistenceIdQuery {
         timestamp = persistenceRepr.timestamp)
   }
 }
-object Test extends App {
-  println(s" bigger ${0 >= Int.MaxValue}")
-
-}
