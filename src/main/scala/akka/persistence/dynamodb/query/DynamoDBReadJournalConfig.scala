@@ -1,4 +1,6 @@
 package akka.persistence.dynamodb.query
+import akka.actor.ActorSystem
+import akka.persistence.dynamodb.query.scaladsl.DynamodbReadJournal
 import akka.persistence.dynamodb.{ ClientConfig, DynamoDBClientConfig, DynamoDBConfig }
 import com.typesafe.config.Config
 
@@ -26,4 +28,8 @@ class DynamoDBReadJournalConfig(c: Config) extends DynamoDBConfig {
   override val ClientDispatcher: String = c.getString("client-dispatcher")
   override val Tracing: Boolean         = c.getBoolean("tracing")
 
+}
+object DynamoDBReadJournalConfig {
+  def apply()(implicit actorSystem: ActorSystem) =
+    new DynamoDBReadJournalConfig(actorSystem.settings.config.getConfig(DynamodbReadJournal.Identifier))
 }

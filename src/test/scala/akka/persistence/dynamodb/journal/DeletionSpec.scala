@@ -3,21 +3,21 @@
  */
 package akka.persistence.dynamodb.journal
 
-import akka.persistence.dynamodb.IntegSpec
 import akka.actor.ActorSystem
 import akka.persistence.JournalProtocol._
 import akka.persistence._
+import akka.persistence.dynamodb.IntegSpec
 import akka.persistence.dynamodb.query.scaladsl.DynamodbReadJournal
 import akka.persistence.query.PersistenceQuery
-import akka.stream.{ Materializer, SystemMaterializer }
 import akka.stream.scaladsl.Sink
+import akka.stream.{ Materializer, SystemMaterializer }
 import akka.testkit._
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalatest._
 import org.scalatest.concurrent.ScalaFutures
 
 class DeletionSpec
-    extends TestKit(ActorSystem("FailureReportingSpec"))
+    extends TestKit(ActorSystem("DeletionSpec"))
     with ImplicitSender
     with WordSpecLike
     with BeforeAndAfterAll
@@ -39,7 +39,7 @@ class DeletionSpec
      * noisy logging, and I like my build output clean and green.
      */
     Thread.sleep(500)
-    client.shutdown()
+    dynamo.shutdown()
     system.terminate().futureValue
     super.afterAll()
   }

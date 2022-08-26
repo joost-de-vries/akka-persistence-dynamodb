@@ -38,7 +38,7 @@ class RecoveryConsistencySpec
   }
 
   override def afterAll(): Unit = {
-    client.shutdown()
+    dynamo.shutdown()
     system.terminate().futureValue
     super.afterAll()
   }
@@ -48,7 +48,7 @@ class RecoveryConsistencySpec
 
   lazy val journal = Persistence(system).journalFor("")
   lazy val queries = PersistenceQuery(system).readJournalFor[DynamodbReadJournal](DynamodbReadJournal.Identifier)
-  import settings._
+  import journalSettings._
 
   "DynamoDB Journal (Recovery)" must {
 
@@ -175,6 +175,6 @@ class RecoveryConsistencySpec
     val key: Item = new JHMap
     key.put(Key, S(s"$JournalName-P-$persistenceId-${num / PartitionSize}"))
     key.put(Sort, N(num % PartitionSize))
-    client.deleteItem(new DeleteItemRequest().withTableName(JournalTable).withKey(key)).futureValue
+    dynamo.deleteItem(new DeleteItemRequest().withTableName(JournalTable).withKey(key)).futureValue
   }
 }

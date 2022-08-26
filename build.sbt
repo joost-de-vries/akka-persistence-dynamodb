@@ -6,7 +6,7 @@ crossVersion := CrossVersion.binary
 
 val akkaVersion                = "2.5.29"
 val amzVersion                 = "1.12.286"
-val testcontainersScalaVersion = "0.39.8"
+val testcontainersScalaVersion = "0.40.10"
 
 libraryDependencies ++= Seq(
   "com.amazonaws"           % "aws-java-sdk-core"              % amzVersion,

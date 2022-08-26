@@ -1,9 +1,9 @@
 package akka.persistence.dynamodb.query.scaladsl
 
 import akka.NotUsed
+import akka.persistence.dynamodb.DynamoProvider
 import akka.persistence.dynamodb.query.ReadJournalSettingsProvider
 import akka.persistence.dynamodb.query.scaladsl.CreatePersistenceIdsIndex.createPersistenceIdsIndexRequest
-import akka.persistence.dynamodb.{ ActorSystemProvider, DynamoProvider, LoggingProvider }
 import akka.persistence.query.scaladsl.CurrentPersistenceIdsQuery
 import akka.stream.scaladsl.Source
 import com.amazonaws.services.dynamodbv2.model._
@@ -37,7 +37,7 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery {
 
 }
 trait CreatePersistenceIdsIndex {
-  self: ReadJournalSettingsProvider with DynamoProvider with ActorSystemProvider with LoggingProvider =>
+  self: ReadJournalSettingsProvider with DynamoProvider =>
 
   /** Update the journal table to add the Global Secondary Index 'persistence-ids-idx' that's required by [[DynamodbCurrentPersistenceIdsQuery.currentPersistenceIdsByPageQuery]] */
   def createPersistenceIdsIndex(): Future[UpdateTableResult] =
@@ -54,6 +54,7 @@ object CreatePersistenceIdsIndex {
       .withIndexName(indexName)
       .withKeySchema(new KeySchemaElement().withAttributeName("num").withKeyType(KeyType.HASH))
       .withProjection(new Projection().withProjectionType(ProjectionType.KEYS_ONLY))
+      .withProvisionedThroughput(new ProvisionedThroughput().withReadCapacityUnits(10).withWriteCapacityUnits(10))
     val update = new GlobalSecondaryIndexUpdate().withCreate(creatIndex)
     new UpdateTableRequest()
       .withTableName(tableName)
