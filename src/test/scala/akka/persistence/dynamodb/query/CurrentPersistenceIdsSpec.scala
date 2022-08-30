@@ -64,8 +64,10 @@ class CurrentPersistenceIdsSpec
                   sequenceNr = i,
                   persistenceId = persistenceId,
                   writerUuid = writerUuid))))
-      writes.foreach { message => journal ! WriteMessages(message :: Nil, testActor, 1) }
-      expectMsg(WriteMessagesSuccessful)
+      writes.foreach { message => 
+        journal ! WriteMessages(message :: Nil, testActor, 1) 
+        expectMsg(WriteMessagesSuccessful)
+      }
 
       val currentPersistenceIds = queries.currentPersistenceIds().runWith(Sink.collection).futureValue.toSeq
 
