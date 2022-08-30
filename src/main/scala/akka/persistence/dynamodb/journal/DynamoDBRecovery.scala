@@ -41,12 +41,6 @@ object DynamoDBRecovery {
     def ids: Seq[Long]                   = items.map(itemToSeq).sorted
     private def itemToSeq(i: Item): Long = map(i.get(Key)) * PartitionSize + i.get(Sort).getN.toInt
   }
-  def rangeSource(from: Long, to: Long): Source[Long, NotUsed] =
-    Source
-      .unfold(from) { s =>
-        val newValue = s + 1; Some((newValue, newValue))
-      }
-      .take(to)
 }
 
 /**

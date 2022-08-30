@@ -6,12 +6,11 @@ import akka.persistence.dynamodb.journal.{ DynamoDBHelper, DynamoDBJournalConfig
 import akka.stream.Materializer
 
 trait LoggingProvider {
-
-  def log: LoggingAdapter
+  protected def log: LoggingAdapter
 }
 
 trait ActorSystemLoggingProvider extends ActorSystemProvider with LoggingProvider {
-  val log: LoggingAdapter = system.log
+  protected val log: LoggingAdapter = system.log
 }
 
 trait ActorSystemProvider {
