@@ -65,7 +65,7 @@ class CurrentPersistenceIdsSpec
                   persistenceId = persistenceId,
                   writerUuid = writerUuid))))
       writes.foreach { message =>
-        journal ! WriteMessages(message :: Nil, testActor, 1) 
+        journal ! WriteMessages(message :: Nil, testActor, 1)
         expectMsg(WriteMessagesSuccessful)
       }
 
