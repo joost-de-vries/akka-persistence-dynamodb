@@ -33,6 +33,42 @@ class CurrentPersistenceIdsSpec
   override protected lazy val readJournalSettings: DynamoDBReadJournalConfig = DynamoDBReadJournalConfig()
   override implicit val patienceConfig: PatienceConfig                       = PatienceConfig(15.seconds)
 
+  private val writerUuid                          = UUID.randomUUID.toString
+  private implicit val materializer: Materializer = SystemMaterializer(system).materializer
+  private lazy val journal                        = Persistence(system).journalFor("")
+  private lazy val queries                        = PersistenceQuery(system).readJournalFor[DynamodbReadJournal](DynamodbReadJournal.Identifier)
+
+  "DynamoDB ReadJournal" must {
+
+    "query current persistence ids" in {
+      val persistenceIds = (0 to 100).map(i => s"CurrentPersistenceIdsSpec_$i")
+      setupEventLog(persistenceIds)
+
+      val currentPersistenceIds = queries.currentPersistenceIds().runWith(Sink.collection).futureValue.toSeq
+
+      currentPersistenceIds.sorted shouldBe persistenceIds.sorted
+    }
+  }
+
+  private def setupEventLog(persistenceIds: Seq[String]): Unit = {
+    val eventsPerActor = 0 to 5
+    val writes = persistenceIds.map(
+      persistenceId =>
+        AtomicWrite(
+          eventsPerActor.map(
+            i =>
+              PersistentRepr(
+                payload = s"$persistenceId $i",
+                sequenceNr = i,
+                persistenceId = persistenceId,
+                writerUuid = writerUuid))))
+    writes.foreach { message =>
+      journal ! WriteMessages(message :: Nil, testActor, 1)
+      expectMsg(WriteMessagesSuccessful)
+      eventsPerActor.foreach(_ => expectMsgType[WriteMessageSuccess])
+    }
+  }
+
   override def beforeAll(): Unit = {
     super.beforeAll()
     ensureJournalTableExists()
@@ -43,37 +79,5 @@ class CurrentPersistenceIdsSpec
     dynamo.shutdown()
     system.terminate().futureValue
     super.afterAll()
-  }
-
-  val persistenceIds                      = (0 to 100).map(i => s"CurrentPersistenceIdsSpec_$i")
-  val writerUuid                          = UUID.randomUUID.toString
-  implicit val materializer: Materializer = SystemMaterializer(system).materializer
-  lazy val journal                        = Persistence(system).journalFor("")
-  lazy val queries                        = PersistenceQuery(system).readJournalFor[DynamodbReadJournal](DynamodbReadJournal.Identifier)
-
-  "DynamoDB ReadJournal" must {
-
-    "query current persistence ids" in {
-      val eventsPerActor = 0 to 5
-      val writes = persistenceIds.map(
-        persistenceId =>
-          AtomicWrite(
-            eventsPerActor.map(
-              i =>
-                PersistentRepr(
-                  payload = s"$persistenceId $i",
-                  sequenceNr = i,
-                  persistenceId = persistenceId,
-                  writerUuid = writerUuid))))
-      writes.foreach { message =>
-        journal ! WriteMessages(message :: Nil, testActor, 1)
-        expectMsg(WriteMessagesSuccessful)
-        eventsPerActor.foreach(_ => expectMsgType[WriteMessageSuccess])
-      }
-
-      val currentPersistenceIds = queries.currentPersistenceIds().runWith(Sink.collection).futureValue.toSeq
-
-      currentPersistenceIds.sorted shouldBe persistenceIds.sorted
-    }
   }
 }
