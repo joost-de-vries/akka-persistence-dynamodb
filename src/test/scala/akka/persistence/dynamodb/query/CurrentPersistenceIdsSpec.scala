@@ -36,7 +36,8 @@ class CurrentPersistenceIdsSpec
   private val writerUuid                          = UUID.randomUUID.toString
   private implicit val materializer: Materializer = SystemMaterializer(system).materializer
   private lazy val journal                        = Persistence(system).journalFor("")
-  private lazy val queries                        = PersistenceQuery(system).readJournalFor[DynamodbReadJournal](DynamodbReadJournal.Identifier)
+  private lazy val queries =
+    PersistenceQuery(system).readJournalFor[DynamodbReadJournal](DynamodbReadJournal.Identifier)
 
   "DynamoDB ReadJournal" must {
 
