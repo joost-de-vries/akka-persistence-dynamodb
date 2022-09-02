@@ -54,10 +54,11 @@ class CurrentPersistenceIdsSpec
   "DynamoDB ReadJournal" must {
 
     "query current persistence ids" in {
+      val eventsPerActor = 0 to 5
       val writes = persistenceIds.map(
         persistenceId =>
           AtomicWrite(
-            (0 to 5).map(
+            eventsPerActor.map(
               i =>
                 PersistentRepr(
                   payload = s"$persistenceId $i",
@@ -67,6 +68,7 @@ class CurrentPersistenceIdsSpec
       writes.foreach { message =>
         journal ! WriteMessages(message :: Nil, testActor, 1)
         expectMsg(WriteMessagesSuccessful)
+        eventsPerActor.foreach(_ => expectMsgType[WriteMessageSuccess])
       }
 
       val currentPersistenceIds = queries.currentPersistenceIds().runWith(Sink.collection).futureValue.toSeq
