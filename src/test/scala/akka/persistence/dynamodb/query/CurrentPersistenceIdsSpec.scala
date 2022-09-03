@@ -108,7 +108,7 @@ object CurrentPersistenceIdsSpec {
 
     def dropUntilAlphabetically(until: String): Seq[String] =
       ids.foldLeft(Seq.empty[String]) { (acc, value) =>
-        val newAcc = if (drop) acc else acc.appended(value)
+        val newAcc = if (drop) acc else acc ++ Seq(value)
         if (value == until) {
           drop = false
         }
