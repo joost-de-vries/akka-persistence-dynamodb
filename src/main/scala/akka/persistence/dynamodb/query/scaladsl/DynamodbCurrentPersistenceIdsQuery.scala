@@ -35,30 +35,54 @@ trait DynamodbCurrentPersistenceIdsQuery extends CurrentPersistenceIdsQuery {
    */
   def currentPersistenceIdsByPageQuery(): Source[Seq[String], NotUsed]
 
+  /**
+   * Persistence ids are returned alphabetically page by page.
+   * A dynamodb <code>query</code> will be performed against a Global Secondary Index 'persistence-ids-idx'.
+   * See [[CreatePersistenceIdsIndex.createPersistenceIdsAlphabeticallyIndexRequest]]
+   */
+  def currentPersistenceIdsAlphabeticallyByPageQuery(
+      fromPersistenceId: Option[String] = None): Source[Seq[String], NotUsed]
 }
 trait CreatePersistenceIdsIndex {
   self: ReadJournalSettingsProvider with DynamoProvider =>
 
-  /** Update the journal table to add the Global Secondary Index 'persistence-ids-idx' that's required by [[DynamodbCurrentPersistenceIdsQuery.currentPersistenceIdsByPageQuery]] */
-  def createPersistenceIdsIndex(): Future[UpdateTableResult] =
+  /**
+   * Update the journal table to add the Global Secondary Index 'persistence-ids-idx' that's required by [[DynamodbCurrentPersistenceIdsQuery.currentPersistenceIdsByPageQuery]]
+   * @param alphabetically sort persistence ids
+   */
+  def createPersistenceIdsIndex(alphabetically: Boolean = false): Future[UpdateTableResult] =
     dynamo.updateTable(
       createPersistenceIdsIndexRequest(
         indexName = readJournalSettings.PersistenceIdsIndexName,
-        tableName = readJournalSettings.Table))
+        tableName = readJournalSettings.Table,
+        alphabetically = alphabetically))
 }
 
 object CreatePersistenceIdsIndex {
 
-  def createPersistenceIdsIndexRequest(indexName: String, tableName: String): UpdateTableRequest = {
-    val creatIndex = new CreateGlobalSecondaryIndexAction()
+  /** required by [[DynamodbCurrentPersistenceIdsQuery.currentPersistenceIdsByPageQuery]] */
+  def createPersistenceIdsIndexRequest(
+      indexName: String,
+      tableName: String,
+      alphabetically: Boolean = false): UpdateTableRequest = {
+    val createIndex = new CreateGlobalSecondaryIndexAction()
       .withIndexName(indexName)
-      .withKeySchema(new KeySchemaElement().withAttributeName("num").withKeyType(KeyType.HASH))
       .withProjection(new Projection().withProjectionType(ProjectionType.KEYS_ONLY))
       .withProvisionedThroughput(new ProvisionedThroughput().withReadCapacityUnits(10).withWriteCapacityUnits(10))
-    val update = new GlobalSecondaryIndexUpdate().withCreate(creatIndex)
+    if (alphabetically) {
+      createIndex.withKeySchema(
+        new KeySchemaElement().withAttributeName("num").withKeyType(KeyType.HASH),
+        new KeySchemaElement().withAttributeName("par").withKeyType(KeyType.RANGE))
+    } else {
+      createIndex.withKeySchema(new KeySchemaElement().withAttributeName("num").withKeyType(KeyType.HASH))
+    }
     new UpdateTableRequest()
       .withTableName(tableName)
-      .withGlobalSecondaryIndexUpdates(update)
+      .withGlobalSecondaryIndexUpdates(new GlobalSecondaryIndexUpdate().withCreate(createIndex))
       .withAttributeDefinitions(new AttributeDefinition().withAttributeName("num").withAttributeType("N"))
   }
+
+  /** required by [[DynamodbCurrentPersistenceIdsQuery.currentPersistenceIdsAlphabeticallyByPageQuery]] */
+  def createPersistenceIdsAlphabeticallyIndexRequest(indexName: String, tableName: String): UpdateTableRequest =
+    createPersistenceIdsIndexRequest(indexName = indexName, tableName = tableName, alphabetically = true)
 }

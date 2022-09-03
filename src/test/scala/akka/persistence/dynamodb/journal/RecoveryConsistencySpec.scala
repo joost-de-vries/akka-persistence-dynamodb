@@ -21,7 +21,7 @@ import java.util.{ HashMap => JHMap }
 import scala.concurrent.duration.DurationInt
 
 class RecoveryConsistencySpec
-    extends TestKit(ActorSystem("FailureReportingSpec"))
+    extends TestKit(ActorSystem("RecoveryConsistencySpec"))
     with ImplicitSender
     with WordSpecLike
     with BeforeAndAfterAll
@@ -30,7 +30,7 @@ class RecoveryConsistencySpec
     with TypeCheckedTripleEquals
     with DynamoDBUtils
     with IntegSpec {
-  override implicit val patienceConfig = PatienceConfig(5.seconds)
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(5.seconds)
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -46,8 +46,9 @@ class RecoveryConsistencySpec
   override val persistenceId              = "RecoveryConsistencySpec"
   implicit val materializer: Materializer = SystemMaterializer(system).materializer
 
-  lazy val journal = Persistence(system).journalFor("")
-  lazy val queries = PersistenceQuery(system).readJournalFor[DynamodbReadJournal](DynamodbReadJournal.Identifier)
+  private lazy val journal = Persistence(system).journalFor("")
+  private lazy val queries =
+    PersistenceQuery(system).readJournalFor[DynamodbReadJournal](DynamodbReadJournal.Identifier)
   import journalSettings._
 
   "DynamoDB Journal (Recovery)" must {

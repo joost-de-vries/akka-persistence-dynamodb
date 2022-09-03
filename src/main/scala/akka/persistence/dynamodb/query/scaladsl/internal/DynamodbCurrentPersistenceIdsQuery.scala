@@ -1,8 +1,10 @@
 package akka.persistence.dynamodb.query.scaladsl.internal
 
 import akka.NotUsed
+import akka.persistence.dynamodb.journal.JournalKeys
 import akka.persistence.dynamodb.query.scaladsl.internal.DynamodbCurrentPersistenceIdsQuery.{
   RichNumber,
+  RichString,
   SourceLazyOps
 }
 import akka.persistence.dynamodb.query.scaladsl.internal.PersistenceIdsResult.RichPersistenceIdsResult
@@ -21,7 +23,11 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 trait DynamodbCurrentPersistenceIdsQuery extends PublicDynamodbCurrentPersistenceIdsQuery {
-  self: ReadJournalSettingsProvider with DynamoProvider with ActorSystemProvider with LoggingProvider =>
+  self: ReadJournalSettingsProvider
+    with DynamoProvider
+    with ActorSystemProvider
+    with LoggingProvider
+    with JournalKeys =>
 
   /**
    * Same type of query as [[akka.persistence.query.scaladsl.PersistenceIdsQuery.persistenceIds()]] but the stream
@@ -55,14 +61,26 @@ trait DynamodbCurrentPersistenceIdsQuery extends PublicDynamodbCurrentPersistenc
     currentPersistenceIdsQueryInternal().log("currentPersistenceIdsByPageQuery")
   }
 
+  /**
+   * Persistence ids are returned alphabetically page by page.
+   * A dynamodb <code>query</code> will be performed against a Global Secondary Index 'persistence-ids-idx'.
+   * See [[CreatePersistenceIdsIndex.createPersistenceIdsAlphabeticallyIndexRequest]]
+   */
+  def currentPersistenceIdsAlphabeticallyByPageQuery(
+      fromPersistenceId: Option[String] = None): Source[Seq[String], NotUsed] = {
+    log.debug("starting currentPersistenceIdsAlphabeticallyByPageQuery")
+    currentPersistenceIdsQueryInternal(fromPersistenceId).log("currentPersistenceIdsAlphabeticallyByPageQuery")
+  }
+
   private def currentPersistenceIdsScanInternal(): Source[Seq[String], NotUsed] = {
     import PersistenceIdsResult.persistenceIdsScanResult
     currentPersistenceIdsByPageInternal(scanPersistenceIds)
   }
 
-  private def currentPersistenceIdsQueryInternal(): Source[Seq[String], NotUsed] = {
+  private def currentPersistenceIdsQueryInternal(
+      fromPersistenceId: Option[String] = None): Source[Seq[String], NotUsed] = {
     import PersistenceIdsResult.persistenceIdsQueryResult
-    currentPersistenceIdsByPageInternal(queryPersistenceIds)
+    currentPersistenceIdsByPageInternal(queryPersistenceIds(fromPersistenceId = fromPersistenceId))
   }
 
   private def currentPersistenceIdsByPageInternal[Result: PersistenceIdsResult](
@@ -97,14 +115,25 @@ trait DynamodbCurrentPersistenceIdsQuery extends PublicDynamodbCurrentPersistenc
           parsePersistenceId(rawPersistenceId = rawPersistenceId, journalName = readJournalSettings.JournalName)))
   }
 
-  private def queryPersistenceIds(exclusiveStartKey: Option[java.util.Map[String, AttributeValue]]) = {
+  private def queryPersistenceIds(fromPersistenceId: Option[String])(
+      exclusiveStartKey: Option[java.util.Map[String, AttributeValue]]) = {
+
     def queryRequest(exclusiveStartKey: Option[java.util.Map[String, AttributeValue]]): QueryRequest = {
       val req = new QueryRequest()
         .withTableName(readJournalSettings.Table)
         .withIndexName(readJournalSettings.PersistenceIdsIndexName)
         .withProjectionExpression("par")
-        .withKeyConditionExpression("num = :n")
-        .withExpressionAttributeValues(Map(":n" -> 1.toAttribute).asJava)
+
+      fromPersistenceId match {
+        case Some(persistenceId) =>
+          req
+            .withKeyConditionExpression("num = :n AND par > :p")
+            .withExpressionAttributeValues(
+              Map(":n" -> 1.toAttribute, ":p" -> messagePartitionKeyFromGroupNr(persistenceId, 0).toAttribute).asJava)
+        case None =>
+          req.withKeyConditionExpression("num = :n").withExpressionAttributeValues(Map(":n" -> 1.toAttribute).asJava)
+
+      }
       exclusiveStartKey.foreach(esk => req.withExclusiveStartKey(esk))
       req
     }
